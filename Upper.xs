@@ -3142,6 +3142,7 @@ PPCODE:
   SV *old_warnings = cop->cop_warnings;
 #endif
   if (old_warnings == pWARN_STD) {
+   fprintf(stderr, "WWW: old_warnings == pWARN_STD\n");
    if (PL_dowarn & G_WARN_ON)
     goto context_info_warnings_on;
    else
@@ -3150,25 +3151,37 @@ PPCODE:
 #else
     goto context_info_warnings_off;
 #endif
-  } else if (old_warnings == pWARN_NONE) {
+  }
+  else if (old_warnings == pWARN_NONE) {
+   fprintf(stderr, "XXX: old_warnings == pWARN_NONE\n");
 #if !XSH_HAS_PERL(5, 17, 4)
 context_info_warnings_off:
 #endif
    mask = su_newmortal_pvn(WARN_NONEstring, WARNsize);
-  } else if (old_warnings == pWARN_ALL) {
+  }
+  else if (old_warnings == pWARN_ALL) {
+   fprintf(stderr, "YYY: old_warnings == pWARN_ALL\n");
    HV *bits;
 context_info_warnings_on:
 #if XSH_HAS_PERL(5, 8, 7)
+   /* fprintf(stderr, "YYY1:\n"); */
    bits = get_hv("warnings::Bits", 0);
    if (bits) {
+   /* fprintf(stderr, "YYY2:\n"); */
     SV **bits_all = hv_fetchs(bits, "all", FALSE);
     if (bits_all)
+   fprintf(stderr, "YYY3: mask set below?\n");
      mask = sv_mortalcopy(*bits_all);
+   fprintf(stderr, "YYY3.1: mask set above?\n");
    }
 #endif
-   if (!mask)
-    mask = su_newmortal_pvn(WARN_ALLstring, WARNsize);
-  } else {
+   if (!mask) {
+     /* fprintf(stderr, "YYY4:\n"); */
+      mask = su_newmortal_pvn(WARN_ALLstring, WARNsize);
+   }
+  }
+  else {
+   /* fprintf(stderr, "ZZZ: else\n"); */
 #if XSH_HAS_PERL(5, 9, 4)
    mask = su_newmortal_pvn((char *) (old_warnings + 1), old_warnings[0]);
 #else

@@ -12,7 +12,8 @@ use Config qw<%Config>;
 # change ; and that doesn't fit well with how we're testing things.
 
 use lib 't/lib';
-use Test::Leaner tests => 18 + 6;
+#use Test::Leaner tests => 18 + 6;
+use Test::Leaner tests => 10;
 
 use Scope::Upper qw<context_info UP HERE CALLER>;
 
@@ -65,14 +66,31 @@ sub expected {
   $warnings,
  );
  push @exp, $hinthash if "$]" >= 5.010;
-
+ my $l = defined $exp[9] ? length $exp[9] : 'warnings string is undef';
+ print STDERR "AAA: length of \$warnings: $l\n";
  return \@exp;
+}
+
+sub check_bitmask {
+    my ($got, $exp) = @_;
+    for (my $i = 0; $i < 9; $i++) {
+        if (($got->[$i] || '') ne ($exp->[$i] || '')) {
+            print STDERR "idx: $i: GOT $got->[$i]; EXP $exp->[$i]\n";
+        }
+    }
+    if ($got->[9] ne $exp->[9]) {
+        print STDERR "GOT $got->[9] (",
+        length($got->[9]),
+        "); EXP $exp->[9] (",
+        length($exp->[9]),
+        ")\n";
+    }
 }
 
 sub setup () {
  my $pkg = caller;
 
- for my $sub (qw<context_info UP HERE is_deeply expected>) {
+ for my $sub (qw<context_info UP HERE is_deeply expected check_bitmask>) {
   no strict 'refs';
   *{"${pkg}::$sub"} = \&{"main::$sub"};
  }
@@ -86,42 +104,57 @@ package Scope::Upper::TestPkg::A; BEGIN { ::setup }
 my @a = sub {
  my $exp1 = expected('sub', undef);
  is_deeply [ context_info ], $exp1, 'sub0 : context_info';
- package Scope::Upper::TestPkg::B; BEGIN { ::setup }
- {
-  my $exp2 = expected('block', __LINE__, 1);
-  is_deeply [ context_info     ], $exp2, 'sub : context_info';
-  is_deeply [ context_info(UP) ], $exp1, 'sub : context_info UP';
-  package Scope::Upper::TestPkg::C; BEGIN { ::setup }
-  for (1) {
-   my $exp3 = expected('loop', __LINE__ - 1, undef);
-   is_deeply [ context_info        ], $exp3, 'for : context_info';
-   is_deeply [ context_info(UP)    ], $exp2, 'for : context_info UP';
-   is_deeply [ context_info(UP UP) ], $exp1, 'for : context_info UP UP';
-  }
-  package Scope::Upper::TestPkg::D; BEGIN { ::setup }
-  my $eval_line = __LINE__+1;
-  eval <<'CODE';
-   my $exp4 = expected('eval', $eval_line);
-   is_deeply [ context_info        ], $exp4, 'eval string : context_info';
-   is_deeply [ context_info(UP)    ], $exp2, 'eval string : context_info UP';
-   is_deeply [ context_info(UP UP) ], $exp1, 'eval string : context_info UP UP';
-CODE
-  die $@ if $@;
-  package Scope::Upper::TestPkg::E; BEGIN { ::setup }
-  my $x = eval {
-   my $exp5 = expected('eval', __LINE__ - 1);
-   package Scope::Upper::TestPkg::F; BEGIN { ::setup }
-   do {
-    my $exp6 = expected('block', __LINE__ - 1, undef);
-    is_deeply [ context_info        ], $exp6, 'do : context_info';
-    is_deeply [ context_info(UP)    ], $exp5, 'do : context_info UP';
-    is_deeply [ context_info(UP UP) ], $exp2, 'do : context_info UP UP';
-   };
-   is_deeply [ context_info        ], $exp5, 'eval : context_info';
-   is_deeply [ context_info(UP)    ], $exp2, 'eval : context_info UP';
-   is_deeply [ context_info(UP UP) ], $exp1, 'eval : context_info UP UP';
-  };
- }
+ check_bitmask([ context_info ], $exp1);
+# package Scope::Upper::TestPkg::B; BEGIN { ::setup }
+# {
+#  my $exp2 = expected('block', __LINE__, 1);
+#  is_deeply [ context_info     ], $exp2, 'sub : context_info';
+#  check_bitmask([ context_info ], $exp2);
+#  is_deeply [ context_info(UP) ], $exp1, 'sub : context_info UP';
+#  check_bitmask([ context_info(UP) ], $exp1);
+#  package Scope::Upper::TestPkg::C; BEGIN { ::setup }
+#  for (1) {
+#   my $exp3 = expected('loop', __LINE__ - 1, undef);
+#   is_deeply [ context_info        ], $exp3, 'for : context_info';
+#   check_bitmask([ context_info ], $exp3);
+#   is_deeply [ context_info(UP)    ], $exp2, 'for : context_info UP';
+#   check_bitmask([ context_info(UP) ], $exp2);
+#   is_deeply [ context_info(UP UP) ], $exp1, 'for : context_info UP UP';
+#   check_bitmask([ context_info(UP UP) ], $exp1);
+#  }
+#  package Scope::Upper::TestPkg::D; BEGIN { ::setup }
+#  my $eval_line = __LINE__+1;
+#  eval <<'CODE';
+#   my $exp4 = expected('eval', $eval_line);
+#   is_deeply [ context_info        ], $exp4, 'eval string : context_info';
+#   check_bitmask([ context_info ], $exp4);
+#   is_deeply [ context_info(UP)    ], $exp2, 'eval string : context_info UP';
+#   check_bitmask([ context_info(UP) ], $exp2);
+#   is_deeply [ context_info(UP UP) ], $exp1, 'eval string : context_info UP UP';
+#   check_bitmask([ context_info(UP UP) ], $exp1);
+#CODE
+#  die $@ if $@;
+#  package Scope::Upper::TestPkg::E; BEGIN { ::setup }
+#  my $x = eval {
+#   my $exp5 = expected('eval', __LINE__ - 1);
+#   package Scope::Upper::TestPkg::F; BEGIN { ::setup }
+#   do {
+#    my $exp6 = expected('block', __LINE__ - 1, undef);
+#    is_deeply [ context_info        ], $exp6, 'do : context_info';
+#    check_bitmask([ context_info ], $exp6);
+#    is_deeply [ context_info(UP)    ], $exp5, 'do : context_info UP';
+#    check_bitmask([ context_info(UP) ], $exp5);
+#    is_deeply [ context_info(UP UP) ], $exp2, 'do : context_info UP UP';
+#    check_bitmask([ context_info(UP UP) ], $exp2);
+#   };
+#   is_deeply [ context_info        ], $exp5, 'eval : context_info';
+#   check_bitmask([ context_info ], $exp5);
+#   is_deeply [ context_info(UP)    ], $exp2, 'eval : context_info UP';
+#   check_bitmask([ context_info(UP) ], $exp2);
+#   is_deeply [ context_info(UP UP) ], $exp1, 'eval : context_info UP UP';
+#   check_bitmask([ context_info(UP UP) ], $exp1);
+#  };
+# }
 }->(1);
 
 package main;
